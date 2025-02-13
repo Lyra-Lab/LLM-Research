@@ -4,11 +4,12 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
 from tqdm import tqdm
 
-# Load the Qwen/Qwen2.5-3B-Instruct model and tokenizer
-model_name = "Qwen/Qwen2.5-3B-Instruct"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+# Loading the model from a local directory
+# Load the Qwen/Qwen2.5-1.5B-Instruct model and tokenizer
+model_path = "models/Qwen2.5-1.5B-Instruct"  # Path to your local model directory
+tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(
-    model_name,
+    model_path,
     torch_dtype=torch.float16,  # adjust based on your hardware
     device_map="auto"
 )
