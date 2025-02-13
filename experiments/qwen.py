@@ -1,5 +1,10 @@
 # %% [code]
+import time
 import torch
+import numpy as np
+import json
+import os
+from typing import Dict, List
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
 from tqdm import tqdm
@@ -7,6 +12,10 @@ from tqdm import tqdm
 # Loading the model from a local directory
 # Load the Qwen/Qwen2.5-1.5B-Instruct model and tokenizer
 model_path = "models/Qwen2.5-1.5B-Instruct"  # Path to your local model directory
+model_name = model_path.split('/')[-1]
+eval_dir = f"{model_name}-eval"
+os.makedirs(eval_dir, exist_ok=True)
+
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(
     model_path,
@@ -81,7 +90,6 @@ def evaluate_dataset(dataset, model, tokenizer):
         if isinstance(ground_truth_answer, int):
             ground_truth_answer = chr(65 + ground_truth_answer)  # Convert 0 to A, 1 to B, etc.
         else:
-
             ground_truth_answer = ground_truth_answer.strip().upper()
 
         if answer_pred == ground_truth_answer:
@@ -111,67 +119,127 @@ mmlu_tasks = [
 ]
 
 # Evaluate the model on all MMLU tasks
-results = {}
+mmlu_results = {'english': {}, 'russian': {}}
+
+# English evaluation
 for task in mmlu_tasks:
     try:
         dataset_mmlu = load_dataset("cais/mmlu", task, split="test")
         print(f"Evaluating on cais/mmlu dataset ({task})")
         accuracy_mmlu = evaluate_dataset(dataset_mmlu, model, tokenizer)
         print(f"Accuracy on cais/mmlu ({task}): {accuracy_mmlu:.2f}%")
-        results[task] = accuracy_mmlu
+        mmlu_results['english'][task] = accuracy_mmlu
     except Exception as e:
         print(f"Error evaluating {task}: {str(e)}")
 
+mmlu_results['english']["average"] = sum(mmlu_results['english'].values()) / len(mmlu_results['english'])
 
-# Print the results
-print("\nResults:")
-for task, accuracy in results.items():
-    print(f"{task}: {accuracy:.2f}%")
-
-
-results["average"] = sum(results.values()) / len(results)
-print(f"Average accuracy: {results['average']}")
-
-# %% [code]
-# This is the same but with the mmlu_ru dataset (not tested currently)
-# Russian Evaluation (mmlu_ru)
-# List of all MMLU tasks
-mmlu_ru_tasks = [
-    'abstract_algebra' 'anatomy', 'astronomy', 'auxiliary_train',
-    'business_ethics', 'clinical_knowledge', 'college_biology', 'college_chemistry',
-    'college_computer_science', 'college_mathematics', 'college_medicine', 'college_physics',
-    'computer_security', 'conceptual_physics', 'econometrics', 'electrical_engineering',
-    'elementary_mathematics', 'formal_logic', 'global_facts', 'high_school_biology',
-    'high_school_chemistry', 'high_school_computer_science', 'high_school_european_history',
-    'high_school_geography', 'high_school_government_and_politics', 'high_school_macroeconomics',
-    'high_school_mathematics', 'high_school_microeconomics', 'high_school_physics',
-    'high_school_psychology', 'high_school_statistics', 'high_school_us_history',
-    'high_school_world_history', 'human_aging', 'human_sexuality', 'international_law',
-    'jurisprudence', 'logical_fallacies', 'machine_learning', 'management', 'marketing',
-    'medical_genetics', 'miscellaneous', 'moral_disputes', 'moral_scenarios', 'nutrition',
-    'philosophy', 'prehistory', 'professional_accounting', 'professional_law',
-    'professional_medicine', 'professional_psychology', 'public_relations', 'security_studies',
-    'sociology', 'us_foreign_policy', 'virology', 'world_religions'
-]
-
-# Evaluate the model on all MMLU tasks
-results = {}
-for task in mmlu_ru_tasks:
+# Russian evaluation
+for task in mmlu_tasks:
     try:
         dataset_mmlu = load_dataset("cais/mmlu", task, split="test")
         print(f"Evaluating on cais/mmlu dataset ({task})")
         accuracy_mmlu = evaluate_dataset(dataset_mmlu, model, tokenizer)
         print(f"Accuracy on cais/mmlu ({task}): {accuracy_mmlu:.2f}%")
-        results[task] = accuracy_mmlu
+        mmlu_results['russian'][task] = accuracy_mmlu
     except Exception as e:
         print(f"Error evaluating {task}: {str(e)}")
 
+mmlu_results['russian']["average"] = sum(mmlu_results['russian'].values()) / len(mmlu_results['russian'])
 
-# Print the results
-print("\nResults:")
-for task, accuracy in results.items():
-    print(f"{task}: {accuracy:.2f}%")
+# Save MMLU results
+with open(f"{eval_dir}/mmlu.json", 'w') as f:
+    json.dump(mmlu_results, f, indent=2)
 
+# %% [code]
+def measure_generation_performance(
+    model,
+    tokenizer,
+    text: str,
+    n_runs: int = 5
+) -> Dict[str, float]:
+    """Measure generation performance metrics for a given text."""
+    metrics = {
+        'token_count': [],
+        'generation_time': [],
+        'tokens_per_second': []
+    }
 
-results["average"] = sum(results.values()) / len(results)
-print(f"Average accuracy: {results['average']}")
+    # Tokenize once to get input token count
+    inputs = tokenizer(text, return_tensors="pt").to(model.device)
+    input_token_count = inputs.input_ids.size(1)
+
+    # Run multiple times to get stable measurements
+    for _ in range(n_runs):
+        start_time = time.time()
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=50,  # Adjust based on your needs
+                temperature=0.7
+            )
+        generation_time = time.time() - start_time
+
+        output_token_count = outputs.size(1) - input_token_count
+        tokens_per_second = output_token_count / generation_time if generation_time > 0 else 0
+
+        metrics['token_count'].append(output_token_count)
+        metrics['generation_time'].append(generation_time)
+        metrics['tokens_per_second'].append(tokens_per_second)
+
+    return {
+        'input_tokens': input_token_count,
+        'avg_output_tokens': np.mean(metrics['token_count']),
+        'avg_generation_time': np.mean(metrics['generation_time']),
+        'avg_tokens_per_second': np.mean(metrics['tokens_per_second']),
+        'std_tokens_per_second': np.std(metrics['tokens_per_second'])
+    }
+
+def compare_language_performance(model, tokenizer):
+    """Compare performance between English and Russian text generation."""
+
+    # Sample texts (roughly equivalent content)
+    texts = {
+        'english': """
+        Please write a short story about a cat who discovers a magical garden.
+        The story should be appropriate for children and include some description
+        of the flowers and plants the cat encounters.
+        """,
+
+        'russian': """
+        Пожалуйста, напишите короткий рассказ о коте, который обнаруживает волшебный сад.
+        Рассказ должен быть подходящим для детей и включать описание
+        цветов и растений, которые встречает кот.
+        """
+    }
+
+    # Measure performance for each language
+    speed_results = {}
+    for lang, text in texts.items():
+        print(f"\nMeasuring {lang} performance...")
+        speed_results[lang] = measure_generation_performance(model, tokenizer, text)
+
+    # Print comparative results
+    print("\n=== Performance Comparison ===")
+    metrics = ['input_tokens', 'avg_output_tokens', 'avg_generation_time',
+               'avg_tokens_per_second']
+
+    for metric in metrics:
+        print(f"\n{metric}:")
+        for lang in speed_results:
+            print(f"{lang}: {speed_results[lang][metric]:.2f}")
+
+        # Calculate relative difference
+        if 'english' in speed_results and 'russian' in speed_results:
+            diff_percent = ((speed_results['russian'][metric] - speed_results['english'][metric])
+                          / speed_results['english'][metric] * 100)
+            print(f"Relative difference: {diff_percent:+.1f}%")
+
+    # Save speed results
+    with open(f"{eval_dir}/speed.json", 'w') as f:
+        json.dump(speed_results, f, indent=2)
+
+    return speed_results
+
+# %% [code]
+results = compare_language_performance(model, tokenizer)
