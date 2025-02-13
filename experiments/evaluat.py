@@ -7,11 +7,16 @@ from typing import Dict, List
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
 from tqdm import tqdm
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
+from pathlib import Path
 
 # Loading the model from a local directory
 # Load the Qwen/Qwen2.5-3B-Instruct model and tokenizer
 work_dir = "/kaggle/working/"
-model_path = work_dir + "models/Qwen2.5-3B-Instruct"  # Path to your local model directory
+# model_path = work_dir + "models/Qwen2.5-3B-Instruct"  # Path to your local model directory
+model_path = work_dir + "models/Qwen2.5-1.5B-Instruct"
 model_name = model_path.split('/')[-1]
 eval_dir = work_dir + f"{model_name}-eval"
 os.makedirs(eval_dir, exist_ok=True)
@@ -239,13 +244,6 @@ def compare_language_performance(model, tokenizer):
     return speed_results
 
 results = compare_language_performance(model, tokenizer)
-
-import json
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-from pathlib import Path
-import numpy as np
 
 # Load the data
 mmlu_data = mmlu_results  # Use results from previous evaluation
