@@ -1,0 +1,3 @@
+[submodule "models/Qwen2.5-3B-Instruct"]
+	path = models/Qwen2.5-3B-Instruct
+	url = https://huggingface.co/Qwen/Qwen2.5-3B-Instruct
