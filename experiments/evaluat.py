@@ -1,4 +1,3 @@
-# %% [code]
 import time
 import torch
 import numpy as np
@@ -11,9 +10,10 @@ from tqdm import tqdm
 
 # Loading the model from a local directory
 # Load the Qwen/Qwen2.5-3B-Instruct model and tokenizer
-model_path = "models/Qwen2.5-3B-Instruct"  # Path to your local model directory
+work_dir = "/kaggle/working/"
+model_path = work_dir + "models/Qwen2.5-3B-Instruct"  # Path to your local model directory
 model_name = model_path.split('/')[-1]
-eval_dir = f"{model_name}-eval"
+eval_dir = work_dir + f"{model_name}-eval"
 os.makedirs(eval_dir, exist_ok=True)
 
 tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -24,7 +24,6 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 model.eval()
 
-# %% [code]
 def construct_prompt(example):
     """
     Constructs a prompt from a dataset example.
@@ -97,7 +96,6 @@ def evaluate_dataset(dataset, model, tokenizer):
     accuracy = correct / total * 100
     return accuracy
 
-# %% [code]
 # English Evaluation (cais/mmlu)
 # List of all MMLU tasks
 mmlu_tasks = [
@@ -151,7 +149,6 @@ mmlu_results['russian']["average"] = sum(mmlu_results['russian'].values()) / len
 with open(f"{eval_dir}/mmlu.json", 'w') as f:
     json.dump(mmlu_results, f, indent=2)
 
-# %% [code]
 def measure_generation_performance(
     model,
     tokenizer,
@@ -241,10 +238,8 @@ def compare_language_performance(model, tokenizer):
 
     return speed_results
 
-# %% [code]
 results = compare_language_performance(model, tokenizer)
 
-# %% [code]
 import json
 import pandas as pd
 import plotly.graph_objects as go
@@ -393,7 +388,7 @@ def create_category_performance():
         height=600
     )
 
-    fig.write_html(eval_dir / "category_performance.html")
+    fig.write_html(os.path.join(eval_dir, "category_performance.html"))
 
 # Generate all visualizations
 create_performance_comparison()
