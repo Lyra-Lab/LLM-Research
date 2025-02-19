@@ -1,0 +1,17 @@
+name: mmlu_eval
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - pytorch-cuda=12.1
+  - pandas
+  - tqdm
+  - pip
+  - pip:
+    - transformers
+    - datasets
+    - notebook
