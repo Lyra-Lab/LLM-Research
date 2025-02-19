@@ -18,6 +18,10 @@
             ncurses5 stdenv.cc binutils
             ffmpeg
 
+            # I daily drive the fish shell
+            # you can remove this, the default is bash
+            fish
+
             # Micromamba does the real legwork
             micromamba
           ]);
@@ -29,6 +33,8 @@
               export EXTRA_CCFLAGS="-I/usr/include"
           '';
 
+          # again, you can remove this if you like bash
+          runScript = "fish";
         }).env;
       };
     }

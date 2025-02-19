@@ -11,7 +11,18 @@ dependencies:
   - pandas
   - tqdm
   - pip
+  - ipython
+  - jupyter
+  - jupyterlab
+  - notebook
+  - ipywidgets
+  - nbformat
+  - nbclient
   - pip:
     - transformers
     - datasets
-    - notebook
+    - accelerate
+    - jupyter-archive
+    - jupyter-resource-usage
+    - jupyter-server
+    - ipykernel
