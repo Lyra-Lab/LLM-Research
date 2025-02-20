@@ -23,6 +23,9 @@ wheels/
 # Data
 data/
 
+# models
+models/
+
 # Virtual Environment
 venv/
 env/
