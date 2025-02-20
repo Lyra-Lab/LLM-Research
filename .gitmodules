@@ -1,3 +1,0 @@
-[submodule "models/My-model"]
-	path = models/My-model
-	url = https://huggingface.co/densud2/My-model

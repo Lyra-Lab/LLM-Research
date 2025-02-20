@@ -17,8 +17,9 @@
           packages = with pkgs; [ python3 ] ++
             (with pkgs.python3Packages; [
               pip
-              torch-bin
               tqdm
+              jsonlines
+              torch-bin
               transformers
               datasets
               venvShellHook
